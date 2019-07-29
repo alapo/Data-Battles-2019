@@ -1,0 +1,71 @@
+# Load/Install required packages ---------------------
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(readxl, ggplot2, esquisse, Rmisc, tidyverse)
+
+# Import your dataset ---------------
+df <- read_excel("raw/data.xlsx", sheet = "Sheet1" )
+
+# Data Wrangling ----------------
+
+  # Renaming a column ================
+df <- df	%>% 
+  rename(
+    #‘New Column Name’= ‘Old Name’
+    "month"= "Month"
+  )
+
+  # Removing NA's -----------
+df <- df %>%
+  filter(!is.na(service)) # give me a new dataframe with only the international services.
+
+
+  # Filtering our data that fits a condition =========
+  new_df <- filter(df, service=="International") # give me a new dataframe with only the international services.
+
+  # Taking the mean and confidence interval =============
+    # Method #1 - Easy #########
+      journey_time <- Rmisc::summarySE(data = df,
+                                       measurevar = "journey_time_avg",
+                                       groupvars = c("service","year"),
+                                       conf.interval = 0.95,
+                                       na.rm = TRUE,
+                                       .drop = TRUE)
+      
+      journey_time <-Rmisc::summarySE(df,measurevar = "journey_time_avg",groupvars = c("service","year"))
+      # Method 2 -  Not so Easy ##################
+
+        # descriptives <- demo%>%dplyr::group_by(AthleteType)%>%
+        #   dplyr::summarise(
+        #     "Mean Height (cm)" = round(mean(Height_cm),2)
+        #     , "Mean Weight (kg)" = round(mean(Weight_kg),2)
+        #     , "Mean Age (Years)" = round(mean(AgeInYears),2)
+        #     , "Number of Concussions" = round(mean(NumPriorConc),2)
+        #     , "Number of Diagnosed Concussions" = round(mean(NumDiagConc),2)
+        #     , "Number of Undiagnosed Concussions" = round(mean(NumUndiagConc),2)
+        #   )
+# Plotting -------------
+#esquisse::esquisser(journey_time)
+plot1 <- ggplot(journey_time) +
+  aes(x = service, fill = as.factor(year), weight = journey_time_avg) +
+  geom_bar(position = "dodge") +
+  scale_fill_hue() +
+  labs(x = "Journey Time Average", y = "Service", title = "This is my awesome Plot", fill = "Year") +
+  theme_minimal() +
+  theme(legend.position = "top")
+
+  # Save the plot we created ====================
+ggsave("images/plot1.png",plot1, width=11, height=8.5, dpi=300)
+
+# Running an ANOVA ----------------
+# testing to see if the type of service has an effect on the Journey Time 
+#model <- lm(journey_time_avg ~ service, data=df)
+model <- aov(journey_time_avg ~ service, data=df)
+modsum <- summary(model)
+#anova(model) #show me the answer in an ANOVA table
+modsum
+
+
+# Save your environment ------------
+# Save it to .RData -----------
+save(journey_time,modsum, model, file = "data/analyzedData.RData") #Save a list of tables that I'll use in the .Rmd file.
+
